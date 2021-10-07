@@ -6,6 +6,9 @@ const app = express();
 const mongoose = require("mongoose")
 const encrypt = require("mongoose-encryption")
 
+// md5 is a javascript hashing package
+const md5 = require("md5")
+
 //------------------------//
 //   Database Config      //
 //------------------------//
@@ -21,8 +24,7 @@ const userSchema = new mongoose.Schema({
 //  Password encryption   //
 //------------------------//
 
-const secret = process.env.USER_DB_SECRET;
-userSchema.plugin(encrypt, {secret: secret, encryptedFields: ['password']});
+
 
 const User = new mongoose.model("User", userSchema);
 
@@ -51,7 +53,7 @@ app.get("/login", (req, res) => {
 
 app.post("/login", (req, res) => {
     const username = req.body.username;
-    const password = req.body.password;
+    const password = md5(req.body.password);
     User.findOne({email: username, password: password}, (err, foundUser) => {
         if(err) {
             console.log(err);
@@ -82,7 +84,7 @@ app.get("/register", (req, res) => {
 app.post("/register", (req, res) => {
 
     const username = req.body.username;
-    const password = req.body.password;
+    const password = md5(req.body.password);
 
     User.create({email: username, password: password}, (err, createdUser) => {
         if(err) console.log(err);

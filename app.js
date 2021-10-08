@@ -1,12 +1,40 @@
 //jshint esversion:6
-require("dotenv").config()
+require("dotenv").config();
 const express = require("express");
 const ejs = require("ejs");
 const app = express();
-const mongoose = require("mongoose")
-const encrypt = require("mongoose-encryption")
-const bcrypt = require("bcrypt")
-const saltRounds = 10;
+const mongoose = require("mongoose");
+const encrypt = require("mongoose-encryption");
+const session = require("express-session");
+const passport = require("passport");
+const passportLocalMongoose = require("passport-local-mongoose");
+
+//------------------------//
+//  Express Middleware    //
+//------------------------//
+
+app.use(express.urlencoded({extended: true}));
+app.use(express.static("public"));
+app.set("view engine", "ejs");
+
+//------------------------//
+//   Sessions Middleware  //
+//------------------------//
+
+// Make sure session middleware is between Express Middleware and Database configuration
+// Initialize Passport right below the session's options object
+
+app.use(session({
+    secret: "Our little secret",
+    resave: false,
+    saveUninitialized: false
+}));
+
+// This tells our app to use and initialize Passport
+app.use(passport.initialize());
+
+//This tells passport to deal with each session
+app.use(passport.session());
 
 
 //------------------------//
@@ -20,23 +48,13 @@ const userSchema = new mongoose.Schema({
     password: String
 });
 
-//------------------------//
-//  Password encryption   //
-//------------------------//
-
-
+// This plugin handles: salting and hashing and to save Users into the MongoDB database
+userSchema.plugin(passportLocalMongoose)
 
 const User = new mongoose.model("User", userSchema);
 
 
 
-//------------------------//
-//  Express Middleware    //
-//------------------------//
-
-app.use(express.urlencoded({extended: true}));
-app.use(express.static("public"));
-app.set("view engine", "ejs");
 
 //------------------------//
 //        Routes          //
@@ -53,25 +71,7 @@ app.get("/login", (req, res) => {
 
 app.post("/login", (req, res) => {
 
-    const username = req.body.username;
-    const password = req.body.password;
-   
-    User.findOne({email: username}, (err, foundUser) => {
-        if(err) {
-            console.log(err);
-            res.redirect("/login")
-        } else {
-            if(foundUser) {
-                bcrypt.compare(password, foundUser.password, (err, result) =>{
-                    if (result) {
-                        res.render("secrets")
-                    } else {
-                        res.render("login")
-                    }
-                })
-            }
-        }
-    });
+    
 });
 
 app.get("/logout", (req, res) => {
@@ -85,16 +85,7 @@ app.get("/register", (req, res) => {
 
 app.post("/register", (req, res) => {
 
-    const username = req.body.username;
-
-    bcrypt.hash(req.body.password, saltRounds, (err, hash) => {
-       if (err) console.log(err);
-       
-        User.create({email: username, password: hash}, (err, createdUser) => {
-            if(err) console.log(err);
-            res.render("secrets")
-        });
-    })
+    
 });
 
 

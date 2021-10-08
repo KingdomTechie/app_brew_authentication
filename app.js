@@ -8,8 +8,6 @@ const encrypt = require("mongoose-encryption")
 const bcrypt = require("bcrypt")
 const saltRounds = 10;
 
-// md5 is a javascript hashing package
-const md5 = require("md5")
 
 //------------------------//
 //   Database Config      //
@@ -54,21 +52,23 @@ app.get("/login", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
+
     const username = req.body.username;
-    const password = md5(req.body.password);
-    User.findOne({email: username, password: password}, (err, foundUser) => {
+    const password = req.body.password;
+   
+    User.findOne({email: username}, (err, foundUser) => {
         if(err) {
             console.log(err);
             res.redirect("/login")
         } else {
             if(foundUser) {
-                if(foundUser.password === password) {
-                    res.render("secrets")
-                } else {
-                    res.render("login")
-                }
-            } else {
-                res.render("login")
+                bcrypt.compare(password, foundUser.password, (err, result) =>{
+                    if (result) {
+                        res.render("secrets")
+                    } else {
+                        res.render("login")
+                    }
+                })
             }
         }
     });
@@ -86,12 +86,15 @@ app.get("/register", (req, res) => {
 app.post("/register", (req, res) => {
 
     const username = req.body.username;
-    const password = md5(req.body.password);
 
-    User.create({email: username, password: password}, (err, createdUser) => {
-        if(err) console.log(err);
-        res.render("secrets")
-    });
+    bcrypt.hash(req.body.password, saltRounds, (err, hash) => {
+       if (err) console.log(err);
+       
+        User.create({email: username, password: hash}, (err, createdUser) => {
+            if(err) console.log(err);
+            res.render("secrets")
+        });
+    })
 });
 
 

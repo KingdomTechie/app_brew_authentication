@@ -27,7 +27,7 @@ app.set("view engine", "ejs");
 // Initialize Passport right below the session's options object
 
 app.use(session({
-    secret: "Our little secret",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false
 }));

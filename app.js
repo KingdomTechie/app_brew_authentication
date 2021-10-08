@@ -5,6 +5,8 @@ const ejs = require("ejs");
 const app = express();
 const mongoose = require("mongoose")
 const encrypt = require("mongoose-encryption")
+const bcrypt = require("bcrypt")
+const saltRounds = 10;
 
 // md5 is a javascript hashing package
 const md5 = require("md5")

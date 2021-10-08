@@ -30,12 +30,15 @@ app.use(session({
     saveUninitialized: false
 }));
 
+//------------------------//
+// Passport Initilization //
+//------------------------//
+
 // This tells our app to use and initialize Passport
 app.use(passport.initialize());
 
 //This tells passport to deal with each session
 app.use(passport.session());
-
 
 //------------------------//
 //   Database Config      //
@@ -48,12 +51,19 @@ const userSchema = new mongoose.Schema({
     password: String
 });
 
+const User = new mongoose.model("User", userSchema);
+
+//------------------------//
+//  Passport Utilization  //
+//------------------------//
+
 // This plugin handles: salting and hashing and to save Users into the MongoDB database
 userSchema.plugin(passportLocalMongoose)
 
-const User = new mongoose.model("User", userSchema);
-
-
+// These 3 lines of code authenticates the user using username and password.  Also serialzes and deserializes the cookie
+passport.use(User.createStrategy());
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
 
 
 //------------------------//
@@ -71,7 +81,6 @@ app.get("/login", (req, res) => {
 
 app.post("/login", (req, res) => {
 
-    
 });
 
 app.get("/logout", (req, res) => {

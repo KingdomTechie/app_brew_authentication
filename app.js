@@ -1,4 +1,6 @@
 //jshint esversion:6
+// Module on Passport security - https://www.udemy.com/course/the-complete-web-development-bootcamp/learn/lecture/13559534#questions
+
 require("dotenv").config();
 const express = require("express");
 const ejs = require("ejs");
@@ -48,8 +50,10 @@ mongoose.connect("mongodb://localhost:27017/userDB");
 
 const userSchema = new mongoose.Schema({
     email: String,
-    password: String
+    password: String,
 });
+
+userSchema.plugin(passportLocalMongoose)
 
 const User = new mongoose.model("User", userSchema);
 
@@ -58,9 +62,8 @@ const User = new mongoose.model("User", userSchema);
 //------------------------//
 
 // This plugin handles: salting and hashing and to save Users into the MongoDB database
-userSchema.plugin(passportLocalMongoose)
 
-// These 3 lines of code authenticates the user using username and password.  Also serialzes and deserializes the cookie
+// These 3 lines of code authenticates the user using username and password.  Also serialzes and deserializes the user
 passport.use(User.createStrategy());
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
@@ -81,6 +84,16 @@ app.get("/login", (req, res) => {
 
 app.post("/login", (req, res) => {
 
+    const authenticate = User.authenticate();
+        authenticate(req.body.username, req.body.password, (err, result) => {
+            if (err) console.log(err);
+
+            if(result) {
+                res.render("secrets")
+            } else {
+                res.render("login")
+            }
+        })
 });
 
 app.get("/logout", (req, res) => {
@@ -88,13 +101,16 @@ app.get("/logout", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
-
     res.render("register")
 });
 
 app.post("/register", (req, res) => {
 
-    
+    //The register() method comes from the passport-local-mongoose package; this creates our User for us.
+    User.register({username: req.body.username}, req.body.password, (err, user) => {
+        if (err) console.log(err);
+
+    })
 });
 
 

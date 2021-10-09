@@ -74,18 +74,30 @@ const User = new mongoose.model("User", userSchema);
 //------------------------//
 
 // These 3 lines of code authenticates the user using username and password.  Also serialzes and deserializes the user
-// passport.use(new LocalStrategy(User.authenticate()));
+passport.use(new LocalStrategy(User.authenticate()));
+
+
+passport.serializeUser((user, done) => {
+    done(null, user.id)
+});
+
+
+passport.deserializeUser((id, done) =>{
+    User.findById(id, (err, user) => {
+        done(err, user)
+    })
+});
+
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
-    callbackURL: "http://localhost:3000/auth/google"
-}), (accessToken, refreshToken, profile, done) =>{
-    User.findOrCreate({googleId: profile.id}, (err, user) => {
-        return done (err, user)
-    })
-});
-passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.deserializeUser());
+    callbackURL: "http://localhost:3000/auth/google/secrets",}, 
+    (accessToken, refreshToken, profile, done) => {
+        User.findOrCreate({ googleId: profile.id }, (err, user) => {
+            return done(err, user);
+        });
+    }));
+
 
 
 //------------------------//
@@ -98,7 +110,9 @@ app.get("/", (req, res) => {
 
 app.get("/auth/google", passport.authenticate("google", { scope: ["https://www.googleapis.com/auth/plus.login"]}));
 
-app.get("/auth/google", passport.authenticate("google", {failureRedirect: "/login"}))
+app.get("/auth/google/secrets", passport.authenticate("google", {failureRedirect: "/login"}),(req, res) => {
+    res.redirect("/secrets")
+})
 
 app.get("/secrets", (req, res) => {
 

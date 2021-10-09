@@ -78,7 +78,7 @@ const User = new mongoose.model("User", userSchema);
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
-    callbackURL: ""
+    callbackURL: "http://localhost:3000/auth/google"
 }), (accessToken, refreshToken, profile, done) =>{
     User.findOrCreate({googleId: profile.id}, (err, user) => {
         return done (err, user)
@@ -95,6 +95,10 @@ app.get("/", (req, res) => {
     console.log(req.session.cookie);
     res.render("home")
 });
+
+app.get("/auth/google", passport.authenticate("google", { scope: ["https://www.googleapis.com/auth/plus.login"]}));
+
+app.get("/auth/google", passport.authenticate("google", {failureRedirect: "/login"}))
 
 app.get("/secrets", (req, res) => {
 

@@ -55,8 +55,9 @@ app.use(passport.session());
 mongoose.connect("mongodb://localhost:27017/userDB");
 
 const userSchema = new mongoose.Schema({
-    username: String,
+    // username: String,
     password: String,
+    googleId: String,
 });
 
 //------------------------//
@@ -91,28 +92,38 @@ passport.deserializeUser((id, done) =>{
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
-    callbackURL: "http://localhost:3000/auth/google/secrets",}, 
-    (accessToken, refreshToken, profile, done) => {
-        User.findOrCreate({ googleId: profile.id }, (err, user) => {
+    callbackURL: "http://localhost:3000/auth/google/secrets",
+    // userProfileURL:"https://googleapis.com/oauth2/v3/userinfo"
+}, 
+    async (accessToken, refreshToken, profile, done) => {
+        await User.findOrCreate({ googleId: profile.id, username: profile.emails[0].value}, (err, user) => {
+            console.log(profile);
+            console.log(user);
             return done(err, user);
         });
     }));
 
-
-
 //------------------------//
-//        Routes          //
+//  Google Auth routes    //
+//------------------------//
+app.get("/auth/google", passport.authenticate("google", { scope: ["openid", "profile", "email" ]}));
+
+app.get('/auth/google/secrets', 
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    function(req, res) {
+    res.redirect('/secrets');
+    });
+
+    
+//------------------------//
+//     Local Routes       //
 //------------------------//
 app.get("/", (req, res) => {
     console.log(req.session.cookie);
     res.render("home")
 });
 
-app.get("/auth/google", passport.authenticate("google", { scope: ["https://www.googleapis.com/auth/plus.login"]}));
 
-app.get("/auth/google/secrets", passport.authenticate("google", {failureRedirect: "/login"}),(req, res) => {
-    res.redirect("/secrets")
-})
 
 app.get("/secrets", (req, res) => {
 
@@ -126,7 +137,9 @@ app.get("/secrets", (req, res) => {
         res.redirect("/login")
     }
 })
-
+//------------------------//
+//   Local Auth Routes     //
+//------------------------//
 app.get("/login", (req, res) => {
 
     res.render("login")

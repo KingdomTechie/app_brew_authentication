@@ -10,6 +10,8 @@ const session = require("express-session");
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const LocalStrategy = require('passport-local').Strategy;
+const GoogleStrategy = require("passport-google-oauth").OAuth2Strategy;
+const findOrCreate = require("mongoose-findorcreate");
 
 //------------------------//
 //  Express Middleware    //
@@ -57,9 +59,14 @@ const userSchema = new mongoose.Schema({
     password: String,
 });
 
-// This plugin handles: salting and hashing and to save Users into the MongoDB database
-userSchema.plugin(passportLocalMongoose)
+//------------------------//
+//     Schema Plugins     //
+//------------------------//
 
+// This plugin handles: salting and hashing and to save Users into the MongoDB database
+userSchema.plugin(passportLocalMongoose);
+userSchema.plugin(findOrCreate)
+;
 const User = new mongoose.model("User", userSchema);
 
 //------------------------//
@@ -67,7 +74,16 @@ const User = new mongoose.model("User", userSchema);
 //------------------------//
 
 // These 3 lines of code authenticates the user using username and password.  Also serialzes and deserializes the user
-passport.use(new LocalStrategy(User.authenticate()));
+// passport.use(new LocalStrategy(User.authenticate()));
+passport.use(new GoogleStrategy({
+    clientID: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    callbackURL: ""
+}), (accessToken, refreshToken, profile, done) =>{
+    User.findOrCreate({googleId: profile.id}, (err, user) => {
+        return done (err, user)
+    })
+});
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 

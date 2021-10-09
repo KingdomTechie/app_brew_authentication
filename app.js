@@ -12,6 +12,8 @@ const passportLocalMongoose = require("passport-local-mongoose");
 const LocalStrategy = require('passport-local').Strategy;
 const GoogleStrategy = require("passport-google-oauth").OAuth2Strategy;
 const findOrCreate = require("mongoose-findorcreate");
+const FacebookStrategy = require("passport-facebook").Strategy;
+const clientID = process.env.FACEBOOK_CLIENT_ID
 
 //------------------------//
 //  Express Middleware    //
@@ -89,6 +91,21 @@ passport.deserializeUser((id, done) =>{
     })
 });
 
+passport.use(new FacebookStrategy({
+    clientID: clientID,
+    clientSecret: process.env.FACEBOOK_APP_SECRET,
+    callbackURL: "http://localhost:3000/auth/facebook/secrets"
+  },
+  function (accessToken, refreshToken, profile, done) {
+     User.findOrCreate({id: profile.id},function(err, user) {
+        console.log(user);
+        console.log(profile);
+      if (err) { return done(err); }
+      done(null, user);
+    });
+  }
+));
+
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
@@ -103,6 +120,7 @@ passport.use(new GoogleStrategy({
         });
     }));
 
+
 //------------------------//
 //  Google Auth routes    //
 //------------------------//
@@ -114,7 +132,15 @@ app.get('/auth/google/secrets',
     res.redirect('/secrets');
     });
 
-    
+//------------------------//
+//  Facebook Auth routes  //
+//------------------------//
+
+app.get("/auth/facebook", passport.authenticate("facebook", { scope: ["openid", "email"]}))
+
+app.get("/auth/facebook/secrets", passport.authenticate("facebook", { successRedirect: "/secrets", failureRedirect: "/login"}));
+
+
 //------------------------//
 //     Local Routes       //
 //------------------------//
@@ -166,25 +192,33 @@ app.get("/register", (req, res) => {
 
 app.post("/register", function(req,res){
 
-    // This creates the user and stores it in the database.  Using passport-local-mongoose package
-    User.register({username:req.body.username},req.body.password,(err,user) =>{
-  
-      if(err){
-  
-        console.log("Error in registering.",err);
-  
-        res.redirect("/register");
-  
-      }else{
-  
-        passport.authenticate("local")(req,res, () => {
-  
-          res.redirect("/secrets");
-  
-      });
-  
-  }});
-  
+    User.findOne({username: req.body.username}, (err, foundUser) => {
+        console.log(foundUser);
+        if(foundUser) {
+            User.findOneAndUpdate({username: foundUser.username}, {$set: {password: req.body.password}},{new: true})
+            // foundUser.save()
+            res.redirect("/secrets")
+        } else {
+            
+            // This creates the user and stores it in the database.  Using passport-local-mongoose package
+            User.register({username:req.body.username},req.body.password,(err,user) =>{
+          
+              if(err){
+          
+                console.log("Error in registering.",err);
+          
+                res.redirect("/register");
+          
+              }else{
+          
+                passport.authenticate("local")(req,res, () => {
+          
+                  res.redirect("/secrets");
+          
+              });
+          }});
+        }
+    })
   });
 // app.post("/register", (req, res) => {
 

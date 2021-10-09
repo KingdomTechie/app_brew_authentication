@@ -6,10 +6,10 @@ const express = require("express");
 const ejs = require("ejs");
 const app = express();
 const mongoose = require("mongoose");
-const encrypt = require("mongoose-encryption");
 const session = require("express-session");
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
+const LocalStrategy = require('passport-local').Strategy;
 
 //------------------------//
 //  Express Middleware    //
@@ -26,10 +26,14 @@ app.set("view engine", "ejs");
 // Make sure session middleware is between Express Middleware and Database configuration
 // Initialize Passport right below the session's options object
 
+// app.set('trust proxy', 1)
+
+// This is the session options object
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    // cookie: {secure: true}
 }));
 
 //------------------------//
@@ -49,10 +53,11 @@ app.use(passport.session());
 mongoose.connect("mongodb://localhost:27017/userDB");
 
 const userSchema = new mongoose.Schema({
-    email: String,
+    username: String,
     password: String,
 });
 
+// This plugin handles: salting and hashing and to save Users into the MongoDB database
 userSchema.plugin(passportLocalMongoose)
 
 const User = new mongoose.model("User", userSchema);
@@ -61,10 +66,8 @@ const User = new mongoose.model("User", userSchema);
 //  Passport Utilization  //
 //------------------------//
 
-// This plugin handles: salting and hashing and to save Users into the MongoDB database
-
 // These 3 lines of code authenticates the user using username and password.  Also serialzes and deserializes the user
-passport.use(User.createStrategy());
+passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
@@ -73,47 +76,104 @@ passport.deserializeUser(User.deserializeUser());
 //        Routes          //
 //------------------------//
 app.get("/", (req, res) => {
-
+    console.log(req.session.cookie);
     res.render("home")
 });
+
+app.get("/secrets", (req, res) => {
+
+    if(req.isAuthenticated()) {
+        console.log(req.isAuthenticated());
+        console.log(req.session);
+        res.render("secrets")
+    } else {
+        console.log(req.isAuthenticated());
+        console.log(req.session);
+        res.redirect("/login")
+    }
+})
 
 app.get("/login", (req, res) => {
 
     res.render("login")
 });
 
-app.post("/login", (req, res) => {
+app.post("/login", passport.authenticate("local"),(req, res) => {
 
-    const authenticate = User.authenticate();
-        authenticate(req.body.username, req.body.password, (err, result) => {
-            if (err) console.log(err);
-
-            if(result) {
-                res.render("secrets")
-            } else {
-                res.render("login")
-            }
-        })
-});
+        if(req.isAuthenticated()) {
+            res.redirect("/secrets")
+        } else {
+            res.redirect("/login")
+        }
+    }
+);
 
 app.get("/logout", (req, res) => {
-    res.render("login")
+    req.logout();
+    res.redirect("/login")
 });
 
 app.get("/register", (req, res) => {
     res.render("register")
 });
 
-app.post("/register", (req, res) => {
+app.post("/register", function(req,res){
 
-    //The register() method comes from the passport-local-mongoose package; this creates our User for us.
-    User.register({username: req.body.username}, req.body.password, (err, user) => {
-        if (err) console.log(err);
+    // This creates the user and stores it in the database.  Using passport-local-mongoose package
+    User.register({username:req.body.username},req.body.password,(err,user) =>{
+  
+      if(err){
+  
+        console.log("Error in registering.",err);
+  
+        res.redirect("/register");
+  
+      }else{
+  
+        passport.authenticate("local")(req,res, () => {
+  
+          res.redirect("/secrets");
+  
+      });
+  
+  }});
+  
+  });
+// app.post("/register", (req, res) => {
 
-    })
-});
+//     //The register() method comes from the passport-local-mongoose package; this creates our User for us.
+//     User.register({username: req.body.username}, req.body.password, (err, user) => {
+//         if (err) {
+//             console.log(err);
+//             res.redirect("/register")
+//         } else {
+//             passport.authenticate("local", {successRedirect: "/secrets", failureRedirect: "/login"})
+//         }
+//     })
+// });
 
 
 app.listen(3000, () => {
     console.log("Listening on port 3000");
 });
+
+
+ // const authenticate = User.authenticate();
+    //     authenticate(req.body.username, req.body.password, (err, result) => {
+    //         if (err) {
+    //             console.log(err);
+
+    //         } else {
+
+    //             if(req.isAuthenticated) {
+    //                 console.log(req.isAuthenticated());
+                    
+    //                 res.render("secrets")
+    //             } else {
+    //                 console.log(req.isAuthenticated());
+                    
+    //                 res.render("login")
+    //             }
+    //         }
+
+    //     })
